@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#121417">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<title>Iron Log</title>
+<style>
+:root{
+  --bg:#121417;
+  --surface:#1B1E23;
+  --surface2:#22262D;
+  --border:#2B3037;
+  --text:#F1EFE9;
+  --muted:#8B92A0;
+  --accent:#FF6A3D;
+  --accent-dim:#5A2A1B;
+  --accent2:#2DD4BF;
+  --danger:#FF5C5C;
+  --radius:14px;
+  font-variant-numeric: tabular-nums;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;
+  padding-bottom:78px;
+  overscroll-behavior-y:none;
+}
+h1,h2,h3{margin:0;}
+button{font-family:inherit;}
+input,textarea{font-family:inherit;}
+.app{max-width:560px;margin:0 auto;padding:0 14px;}
+
+/* ---- Header ---- */
+.topbar{
+  position:sticky;top:0;z-index:20;
+  background:linear-gradient(180deg,var(--bg) 70%, rgba(18,20,23,0));
+  padding:16px 14px 8px;
+  max-width:560px;margin:0 auto;
+}
+.topbar .brand{
+  display:flex;align-items:baseline;gap:8px;margin-bottom:12px;
+}
+.topbar .brand .mark{
+  width:10px;height:10px;border-radius:2px;background:var(--accent);
+  transform:rotate(45deg);
+}
+.topbar h1{
+  font-size:19px;letter-spacing:0.5px;font-weight:800;
+  text-transform:uppercase;
+}
+.topbar .sub{color:var(--muted);font-size:12px;}
+
+.tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.tabs::-webkit-scrollbar{display:none;}
+.tab-btn{
+  flex:0 0 auto;
+  padding:8px 14px;border-radius:999px;border:1px solid var(--border);
+  background:var(--surface);color:var(--muted);font-size:13px;font-weight:700;
+  white-space:nowrap;
+}
+.tab-btn.active{background:var(--accent);border-color:var(--accent);color:#1A0F0A;}
+
+.daytabs{display:flex;gap:6px;margin-top:8px;}
+.daytabs .tab-btn{flex:1;text-align:center;padding:9px 4px;}
+
+/* ---- Cards ---- */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  margin:12px 0;
+  overflow:hidden;
+}
+.card-head{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+}
+.ord{
+  width:26px;height:26px;border-radius:8px;background:var(--surface2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;color:var(--accent);flex:0 0 auto;
+}
+.card-head h3{font-size:15.5px;font-weight:700;flex:1;line-height:1.3;}
+.badge{
+  font-size:11px;font-weight:700;color:var(--muted);
+  background:var(--surface2);border:1px solid var(--border);
+  padding:3px 7px;border-radius:6px;white-space:nowrap;
+}
+.note{
+  font-size:12px;color:var(--accent2);padding:0 14px 10px;margin-top:-2px;
+}
+
+.block{padding:10px 14px;border-top:1px dashed var(--border);}
+.block:first-of-type{border-top:none;}
+.block-label{
+  display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;
+}
+.block-label .name{font-size:13px;font-weight:700;color:var(--text);}
+.block-label .backoff-pill{
+  font-size:10.5px;font-weight:800;color:#0A1613;background:var(--accent2);
+  padding:2px 7px;border-radius:5px;letter-spacing:0.3px;
+}
+.meta-row{
+  display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;
+}
+.meta-chip{
+  font-size:11.5px;color:var(--muted);background:var(--surface2);
+  border:1px solid var(--border);padding:4px 8px;border-radius:7px;
+}
+.meta-chip.target{color:var(--accent);border-color:var(--accent-dim);font-weight:800;}
+
+.inputs-row{display:flex;gap:8px;}
+.field{flex:1;}
+.field label{
+  display:block;font-size:10.5px;color:var(--muted);margin-bottom:4px;
+  text-transform:uppercase;letter-spacing:0.4px;
+}
+.field input{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:9px;padding:10px 10px;color:var(--text);font-size:16px;font-weight:700;
+}
+.field input:focus{outline:none;border-color:var(--accent);}
+.field .unit{color:var(--muted);font-size:12px;margin-left:4px;font-weight:500;}
+
+/* ---- Bottom nav ---- */
+.bottomnav{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:rgba(27,30,35,0.94);backdrop-filter:blur(10px);
+  border-top:1px solid var(--border);
+  display:flex;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.bottomnav button{
+  flex:1;background:none;border:none;color:var(--muted);
+  padding:11px 0 9px;font-size:11px;font-weight:700;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+}
+.bottomnav button .ic{width:20px;height:20px;}
+.bottomnav button.active{color:var(--accent);}
+
+/* ---- Save bar ---- */
+.savebar{
+  position:sticky;bottom:70px;z-index:15;
+  display:flex;justify-content:center;pointer-events:none;
+  margin-top:6px;
+}
+.save-btn{
+  pointer-events:all;
+  background:var(--accent);color:#1A0F0A;border:none;
+  padding:13px 26px;border-radius:999px;font-weight:800;font-size:14.5px;
+  box-shadow:0 8px 22px rgba(255,106,61,0.35);
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ---- Toast ---- */
+.toast{
+  position:fixed;left:50%;bottom:100px;transform:translateX(-50%) translateY(20px);
+  background:var(--text);color:#15181C;padding:10px 18px;border-radius:999px;
+  font-size:13px;font-weight:700;opacity:0;transition:all .25s ease;z-index:60;
+  pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ---- Settings / 1RM ---- */
+.section-title{
+  font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;
+  font-weight:800;margin:22px 0 10px;
+}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.orm-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px;text-align:center;}
+.orm-card label{display:block;font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:700;}
+.orm-card input{
+  width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:9px;
+  color:var(--accent);font-weight:800;font-size:18px;text-align:center;padding:8px 4px;
+}
+.help{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px;}
+.help a{color:var(--accent2);}
+
+.btnrow{display:flex;gap:8px;margin-top:12px;}
+.btn{
+  flex:1;padding:12px;border-radius:11px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text);font-weight:700;font-size:13.5px;text-align:center;
+}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#1A0F0A;}
+.btn.danger{color:var(--danger);}
+textarea.backup{
+  width:100%;min-height:90px;background:var(--surface2);border:1px solid var(--border);
+  border-radius:9px;color:var(--text);font-size:12px;padding:10px;margin-top:8px;
+}
+
+/* ---- History ---- */
+.hist-item{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 14px;margin:10px 0;
+}
+.hist-item .hrow{display:flex;justify-content:space-between;align-items:center;}
+.hist-item .hdate{font-weight:800;font-size:14px;}
+.hist-item .hwd{color:var(--accent);font-size:12px;font-weight:800;margin-top:2px;}
+.hist-item .del{color:var(--muted);font-size:11px;background:none;border:none;padding:6px;}
+.hist-detail{margin-top:10px;border-top:1px dashed var(--border);padding-top:10px;display:none;}
+.hist-detail.open{display:block;}
+.hist-row{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0;color:var(--muted);}
+.hist-row span:last-child{color:var(--text);font-weight:700;}
+.empty{color:var(--muted);text-align:center;padding:40px 10px;font-size:13px;line-height:1.7;}
+
+.page{display:none;}
+.page.active{display:block;}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="topbar">
+    <div class="brand"><div class="mark"></div><h1>IRON LOG</h1></div>
+    <div id="workoutTabsWrap">
+      <div class="tabs" id="weekTabs"></div>
+      <div class="daytabs" id="dayTabs"></div>
+    </div>
+  </div>
+
+  <!-- WORKOUT PAGE -->
+  <div class="page active" id="page-workout">
+    <div id="workoutList"></div>
+    <div class="savebar"><button class="save-btn" id="saveLogBtn">✓ この日の記録を保存</button></div>
+  </div>
+
+  <!-- HISTORY PAGE -->
+  <div class="page" id="page-history">
+    <div class="section-title">記録履歴</div>
+    <div id="historyList"></div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="section-title">現在の1RM (kg)</div>
+    <div class="grid3">
+      <div class="orm-card"><label>スクワット</label><input type="number" inputmode="decimal" id="ormSquat"></div>
+      <div class="orm-card"><label>ベンチプレス</label><input type="number" inputmode="decimal" id="ormBench"></div>
+      <div class="orm-card"><label>デッドリフト</label><input type="number" inputmode="decimal" id="ormDeadlift"></div>
+    </div>
+    <div class="help">1RM（またはRM法で算出した推定1RM）を入力すると、各メニューの目標重量が2.5kg刻みで自動計算されます。</div>
+    <div class="btnrow"><button class="btn primary" id="saveOrmBtn">1RMを保存</button></div>
+
+    <div class="section-title">バックアップ</div>
+    <div class="help">端末やブラウザを変える場合はここでデータを書き出し／読み込みできます。テキストをコピーして、メモ帳などに保管してください。</div>
+    <div class="btnrow">
+      <button class="btn" id="exportBtn">書き出す</button>
+      <button class="btn" id="importBtn">読み込む</button>
+    </div>
+    <textarea class="backup" id="backupArea" placeholder="ここにバックアップテキストが表示されます"></textarea>
+
+    <div class="section-title">ホーム画面に追加（iPhone）</div>
+    <div class="help">Safariでこのファイルを開いた状態で、下部の共有ボタン → 「ホーム画面に追加」を選ぶと、アプリのように起動できます。通信は一切行わないため、電波が無い環境でも動作します。</div>
+
+    <div class="section-title">データを消去</div>
+    <div class="btnrow"><button class="btn danger" id="resetBtn">すべてのデータを削除</button></div>
+  </div>
+</div>
+
+<div class="bottomnav">
+  <button class="navbtn active" data-page="workout">今日のメニュー</button>
+  <button class="navbtn" data-page="history">履歴</button>
+  <button class="navbtn" data-page="settings">設定 / 1RM</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROGRAM = {"WEEK1":{"1":[{"order":1,"name":"スクワット","rpe":"RPE8","pct":0.87,"sets":1,"reps":3,"total":3,"interval":"3-5","note":null,"refBase":"squat"},{"order":null,"name":"Backoff","rpe":null,"pct":0.77,"sets":4,"reps":4,"total":16,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"【デッドリフト系】","rpe":"RPE7","pct":0.75,"sets":1,"reps":8,"total":8,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":null,"name":"Backoff","rpe":null,"pct":0.68,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"2":[{"order":1,"name":"ベンチプレス","rpe":"RPE8","pct":0.87,"sets":1,"reps":3,"total":3,"interval":"3-5","note":null,"refBase":"bench"},{"order":null,"name":"Backoff","rpe":null,"pct":0.77,"sets":4,"reps":4,"total":16,"interval":"3-5","note":null,"refBase":"bench"},{"order":2,"name":"【背中/バーチカル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":12,"total":36,"interval":"1.5-3","note":null,"refBase":null},{"order":3,"name":"ライイングEX","rpe":"RPE8","pct":null,"sets":3,"reps":12,"total":36,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"サイドレイズ","rpe":"RPE8","pct":null,"sets":3,"reps":17,"total":51,"interval":"1.5","note":null,"refBase":null}],"3":[{"order":1,"name":"スクワット","rpe":"RPE8","pct":0.73,"sets":3,"reps":10,"total":30,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"ブルガリアンスクワット","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":null},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"4":[{"order":1,"name":"【プレス系種目】","rpe":"RPE8","pct":null,"sets":3,"reps":12,"total":36,"interval":"3","note":null,"refBase":null},{"order":2,"name":"【ベンチプレス】","rpe":" RPE8","pct":0.73,"sets":3,"reps":10,"total":30,"interval":"3-5","note":null,"refBase":"bench"},{"order":3,"name":"【背中/ホリゾンタル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":12,"total":36,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"フェイスプル","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":"*ケーブルマシンがない場合はチューブで代替","refBase":null},{"order":5,"name":"ダンベルカール","rpe":"RPE8","pct":null,"sets":3,"reps":12,"total":36,"interval":"1.5","note":null,"refBase":null}]},"WEEK2":{"1":[{"order":1,"name":"スクワット","rpe":"RPE8","pct":0.77,"sets":1,"reps":7,"total":7,"interval":"3-5","note":null,"refBase":"squat"},{"order":null,"name":"Backoff","rpe":null,"pct":0.71,"sets":3,"reps":7,"total":21,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"【デッドリフト系】","rpe":"RPE7","pct":0.78,"sets":1,"reps":6,"total":6,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":null,"name":"Backoff","rpe":null,"pct":0.71,"sets":4,"reps":6,"total":24,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"2":[{"order":1,"name":"ベンチプレス","rpe":"RPE8","pct":0.78,"sets":1,"reps":7,"total":7,"interval":"3-5","note":null,"refBase":"bench"},{"order":null,"name":"Backoff","rpe":null,"pct":0.71,"sets":3,"reps":7,"total":21,"interval":"3-5","note":null,"refBase":"bench"},{"order":2,"name":"【背中/バーチカル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"1.5-3","note":null,"refBase":null},{"order":3,"name":"ライイングEX","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"サイドレイズ","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5","note":null,"refBase":null}],"3":[{"order":1,"name":"【スクワット系】","rpe":"RPE8","pct":0.7,"sets":3,"reps":12,"total":36,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"ブルガリアンスクワット","rpe":"RPE8","pct":null,"sets":3,"reps":13,"total":39,"interval":"3-5","note":null,"refBase":null},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"4":[{"order":1,"name":"【プレス系種目】","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"3","note":null,"refBase":null},{"order":2,"name":"【ベンチプレス】","rpe":" RPE8","pct":0.7,"sets":3,"reps":12,"total":36,"interval":"3-5","note":null,"refBase":"bench"},{"order":3,"name":"【背中/ホリゾンタル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"フェイスプル","rpe":"RPE8","pct":null,"sets":3,"reps":15,"total":45,"interval":"1.5","note":"*ケーブルマシンがない場合はチューブで代替","refBase":null},{"order":5,"name":"ダンベルカール","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"1.5","note":null,"refBase":null}]},"WEEK3(DELOAD)":{"1":[{"order":1,"name":"スクワット","rpe":"RPE6","pct":0.83,"sets":1,"reps":3,"total":3,"interval":"3-5","note":null,"refBase":"squat"},{"order":null,"name":"Backoff","rpe":null,"pct":0.78,"sets":3,"reps":3,"total":9,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"【デッドリフト系】","rpe":"RPE5","pct":0.8,"sets":1,"reps":3,"total":3,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":null,"name":"Backoff","rpe":null,"pct":0.73,"sets":3,"reps":3,"total":9,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":3,"name":"腹筋","rpe":"RPE7","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"2":[{"order":1,"name":"ベンチプレス","rpe":"RPE6","pct":0.83,"sets":1,"reps":3,"total":3,"interval":"3-5","note":null,"refBase":"bench"},{"order":null,"name":"Backoff","rpe":null,"pct":0.78,"sets":3,"reps":3,"total":9,"interval":"3-5","note":null,"refBase":"bench"},{"order":2,"name":"【背中/バーチカル種目】","rpe":"RPE7","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":3,"name":"ライイングEX","rpe":"RPE7","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"サイドレイズ","rpe":"RPE7","pct":null,"sets":3,"reps":15,"total":45,"interval":"1.5","note":null,"refBase":null}],"3":[{"order":1,"name":"【スクワット系】","rpe":"RPE6","pct":0.72,"sets":3,"reps":6,"total":18,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"ブルガリアンスクワット","rpe":"RPE7","pct":null,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":null},{"order":3,"name":"腹筋","rpe":"RPE7","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"4":[{"order":1,"name":"【プレス系種目】","rpe":"RPE7","pct":null,"sets":3,"reps":8,"total":24,"interval":"3","note":null,"refBase":null},{"order":2,"name":"【ベンチプレス】","rpe":" RPE6","pct":0.75,"sets":3,"reps":6,"total":18,"interval":"3-5","note":null,"refBase":"bench"},{"order":3,"name":"【背中/ホリゾンタル種目】","rpe":"RPE7","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"フェイスプル","rpe":"RPE7","pct":null,"sets":3,"reps":15,"total":45,"interval":"1.5","note":"*ケーブルマシンがない場合はチューブで代替","refBase":null},{"order":5,"name":"ダンベルカール","rpe":"RPE7","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5","note":null,"refBase":null}]},"WEEK4":{"1":[{"order":1,"name":"スクワット","rpe":"RPE8","pct":0.83,"sets":1,"reps":5,"total":5,"interval":"3-5","note":null,"refBase":"squat"},{"order":null,"name":"Backoff","rpe":null,"pct":0.78,"sets":3,"reps":5,"total":15,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"【デッドリフト系】","rpe":"RPE7","pct":0.8,"sets":1,"reps":5,"total":5,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":null,"name":"Backoff","rpe":null,"pct":0.73,"sets":3,"reps":5,"total":15,"interval":"3-5","note":null,"refBase":"deadlift"},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"2":[{"order":1,"name":"ベンチプレス","rpe":"RPE8","pct":0.83,"sets":1,"reps":5,"total":5,"interval":"3-5","note":null,"refBase":"bench"},{"order":null,"name":"Backoff","rpe":null,"pct":0.78,"sets":3,"reps":5,"total":15,"interval":"3-5","note":null,"refBase":"bench"},{"order":2,"name":"【背中/バーチカル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":3,"name":"ライイングEX","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"サイドレイズ","rpe":"RPE8","pct":null,"sets":3,"reps":15,"total":45,"interval":"1.5","note":null,"refBase":null}],"3":[{"order":1,"name":"【スクワット系】","rpe":"RPE8","pct":0.75,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":"squat"},{"order":2,"name":"ブルガリアンスクワット","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":null},{"order":3,"name":"腹筋","rpe":"RPE8","pct":null,"sets":3,"reps":20,"total":60,"interval":"1.5","note":null,"refBase":null}],"4":[{"order":1,"name":"【プレス系種目】","rpe":"RPE8","pct":null,"sets":3,"reps":8,"total":24,"interval":"3","note":null,"refBase":null},{"order":2,"name":"【ベンチプレス】","rpe":" RPE8","pct":0.75,"sets":3,"reps":8,"total":24,"interval":"3-5","note":null,"refBase":"bench"},{"order":3,"name":"【背中/ホリゾンタル種目】","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5-3","note":null,"refBase":null},{"order":4,"name":"フェイスプル","rpe":"RPE8","pct":null,"sets":3,"reps":15,"total":45,"interval":"1.5","note":"*ケーブルマシンがない場合はチューブで代替","refBase":null},{"order":5,"name":"ダンベルカール","rpe":"RPE8","pct":null,"sets":3,"reps":10,"total":30,"interval":"1.5","note":null,"refBase":null}]}};
+const WEEK_KEYS = ["WEEK1","WEEK2","WEEK3(DELOAD)","WEEK4"];
+const WEEK_LABELS = {"WEEK1":"Week 1","WEEK2":"Week 2","WEEK3(DELOAD)":"Week 3 (Deload)","WEEK4":"Week 4"};
+const DAY_KEYS = ["1","2","3","4"];
+
+const LS = {
+  orm: "ironlog_orm",
+  last: "ironlog_last",
+  draft: "ironlog_draft",
+  history: "ironlog_history"
+};
+
+function readJSON(key, fallback){
+  try{
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  }catch(e){ return fallback; }
+}
+function writeJSON(key, val){
+  try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+}
+
+let orm = readJSON(LS.orm, {squat:null, bench:null, deadlift:null});
+let draft = readJSON(LS.draft, {}); // key -> {weight, reps, memo}
+let history = readJSON(LS.history, []);
+let state = readJSON(LS.last, {week:"WEEK1", day:"1"});
+
+function mround(value, step){
+  return Math.round(value/step) * step;
+}
+function calcTarget(base, pct){
+  if(!base || !pct) return null;
+  const rm = orm[base];
+  if(!rm || isNaN(rm)) return null;
+  return mround(rm * pct, 2.5);
+}
+function fmtNum(n){
+  if(n === null || n === undefined || isNaN(n)) return "";
+  return (Math.round(n*10)/10).toString();
+}
+
+function draftKey(week, day, idx){
+  return week + "|" + day + "|" + idx;
+}
+
+/* ---------- Rendering: tabs ---------- */
+function renderTabs(){
+  const wt = document.getElementById('weekTabs');
+  wt.innerHTML = "";
+  WEEK_KEYS.forEach(wk=>{
+    const b = document.createElement('button');
+    b.className = 'tab-btn' + (state.week===wk ? ' active':'');
+    b.textContent = WEEK_LABELS[wk];
+    b.onclick = ()=>{ state.week = wk; if(!PROGRAM[wk][state.day]) state.day="1"; persistState(); renderAll(); };
+    wt.appendChild(b);
+  });
+  const dt = document.getElementById('dayTabs');
+  dt.innerHTML = "";
+  DAY_KEYS.forEach(dk=>{
+    if(!PROGRAM[state.week][dk]) return;
+    const b = document.createElement('button');
+    b.className = 'tab-btn' + (state.day===dk ? ' active':'');
+    b.textContent = 'Day ' + dk;
+    b.onclick = ()=>{ state.day = dk; persistState(); renderAll(); };
+    dt.appendChild(b);
+  });
+}
+function persistState(){ writeJSON(LS.last, state); }
+
+/* ---------- Rendering: workout list ---------- */
+function renderWorkout(){
+  const list = document.getElementById('workoutList');
+  list.innerHTML = "";
+  const rows = PROGRAM[state.week][state.day] || [];
+
+  // group: a row starting a new card when it has an order number or is not 'Backoff'
+  let groups = [];
+  rows.forEach((row, idx)=>{
+    if(row.name === 'Backoff' && groups.length){
+      groups[groups.length-1].items.push({row, idx});
+    } else {
+      groups.push({order: row.order, items:[{row, idx}]});
+    }
+  });
+
+  groups.forEach(g=>{
+    const main = g.items[0].row;
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const head = document.createElement('div');
+    head.className = 'card-head';
+    head.innerHTML = `<div class="ord">${g.order ?? ''}</div><h3>${main.name.replace(/^Backoff$/,'')}</h3>` +
+      (main.rpe ? `<div class="badge">${main.rpe.trim()}</div>` : '');
+    card.appendChild(head);
+
+    if(main.note){
+      const n = document.createElement('div');
+      n.className = 'note';
+      n.textContent = main.note;
+      card.appendChild(n);
+    }
+
+    g.items.forEach(({row, idx})=>{
+      const block = document.createElement('div');
+      block.className = 'block';
+
+      const target = calcTarget(row.refBase, row.pct);
+      const key = draftKey(state.week, state.day, idx);
+      const saved = draft[key] || {};
+
+      const lbl = document.createElement('div');
+      lbl.className = 'block-label';
+      lbl.innerHTML = (row.name === 'Backoff' ? `<span class="backoff-pill">BACK OFF</span>` : `<span class="name">トップセット</span>`);
+      block.appendChild(lbl);
+
+      const meta = document.createElement('div');
+      meta.className = 'meta-row';
+      let chips = [];
+      chips.push(`<div class="meta-chip">${row.sets}セット × ${row.reps}回</div>`);
+      if(row.pct) chips.push(`<div class="meta-chip">${Math.round(row.pct*100)}% RM</div>`);
+      if(target !== null) chips.push(`<div class="meta-chip target">目標 ${fmtNum(target)} kg</div>`);
+      if(row.interval) chips.push(`<div class="meta-chip">休憩 ${row.interval}分</div>`);
+      meta.innerHTML = chips.join('');
+      block.appendChild(meta);
+
+      const inputsRow = document.createElement('div');
+      inputsRow.className = 'inputs-row';
+      inputsRow.innerHTML = `
+        <div class="field">
+          <label>実施重量 (kg)</label>
+          <input type="number" inputmode="decimal" step="0.5" data-key="${key}" data-field="weight"
+                 value="${saved.weight ?? (target!==null ? fmtNum(target) : '')}">
+        </div>
+        <div class="field">
+          <label>実施レップ数</label>
+          <input type="number" inputmode="numeric" data-key="${key}" data-field="reps"
+                 value="${saved.reps ?? ''}" placeholder="${row.reps}">
+        </div>
+      `;
+      block.appendChild(inputsRow);
+      card.appendChild(block);
+    });
+
+    list.appendChild(card);
+  });
+
+  if(rows.length === 0){
+    list.innerHTML = '<div class="empty">このDayのメニューはありません。</div>';
+  }
+
+  // wire inputs
+  list.querySelectorAll('input[data-key]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const k = inp.dataset.key, f = inp.dataset.field;
+      if(!draft[k]) draft[k] = {};
+      draft[k][f] = inp.value;
+      writeJSON(LS.draft, draft);
+    });
+  });
+}
+
+/* ---------- Save session to history ---------- */
+document.getElementById('saveLogBtn').addEventListener('click', ()=>{
+  const rows = PROGRAM[state.week][state.day] || [];
+  const entries = [];
+  rows.forEach((row, idx)=>{
+    const key = draftKey(state.week, state.day, idx);
+    const d = draft[key] || {};
+    const target = calcTarget(row.refBase, row.pct);
+    entries.push({
+      name: row.name === 'Backoff' ? '（バックオフ）' : row.name,
+      setInfo: row.sets + 'x' + row.reps,
+      target: target,
+      weight: d.weight || null,
+      reps: d.reps || null
+    });
+  });
+  const now = new Date();
+  const rec = {
+    id: now.getTime(),
+    ts: now.toISOString(),
+    dateLabel: now.getFullYear()+"/"+(now.getMonth()+1)+"/"+now.getDate(),
+    week: state.week, day: state.day,
+    entries
+  };
+  history.unshift(rec);
+  writeJSON(LS.history, history);
+  showToast('保存しました 💪');
+  renderHistory();
+});
+
+/* ---------- History ---------- */
+function renderHistory(){
+  const wrap = document.getElementById('historyList');
+  wrap.innerHTML = "";
+  if(history.length === 0){
+    wrap.innerHTML = '<div class="empty">まだ記録がありません。<br>「今日のメニュー」から記録を保存すると、ここに表示されます。</div>';
+    return;
+  }
+  history.forEach(rec=>{
+    const item = document.createElement('div');
+    item.className = 'hist-item';
+    item.innerHTML = `
+      <div class="hrow">
+        <div>
+          <div class="hdate">${rec.dateLabel}</div>
+          <div class="hwd">${WEEK_LABELS[rec.week]||rec.week} / Day ${rec.day}</div>
+        </div>
+        <button class="del" data-id="${rec.id}">削除</button>
+      </div>
+      <div class="hist-detail" id="detail-${rec.id}">
+        ${rec.entries.map(e=>`
+          <div class="hist-row">
+            <span>${e.name} (${e.setInfo}${e.target!==null?(' / 目標'+fmtNum(e.target)+'kg'):''})</span>
+            <span>${e.weight?e.weight+'kg':'-'} ${e.reps?('× '+e.reps+'回'):''}</span>
+          </div>`).join('')}
+      </div>
+    `;
+    item.querySelector('.hrow').addEventListener('click', (ev)=>{
+      if(ev.target.classList.contains('del')) return;
+      document.getElementById('detail-'+rec.id).classList.toggle('open');
+    });
+    item.querySelector('.del').addEventListener('click', ()=>{
+      history = history.filter(h=>h.id !== rec.id);
+      writeJSON(LS.history, history);
+      renderHistory();
+    });
+    wrap.appendChild(item);
+  });
+}
+
+/* ---------- Settings ---------- */
+function renderSettings(){
+  document.getElementById('ormSquat').value = orm.squat ?? '';
+  document.getElementById('ormBench').value = orm.bench ?? '';
+  document.getElementById('ormDeadlift').value = orm.deadlift ?? '';
+}
+document.getElementById('saveOrmBtn').addEventListener('click', ()=>{
+  orm = {
+    squat: parseFloat(document.getElementById('ormSquat').value) || null,
+    bench: parseFloat(document.getElementById('ormBench').value) || null,
+    deadlift: parseFloat(document.getElementById('ormDeadlift').value) || null
+  };
+  writeJSON(LS.orm, orm);
+  showToast('1RMを保存しました');
+  renderWorkout();
+});
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const payload = {orm, draft, history, last:state};
+  document.getElementById('backupArea').value = JSON.stringify(payload);
+  showToast('書き出しました。テキストをコピーして保管してください');
+});
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  try{
+    const payload = JSON.parse(document.getElementById('backupArea').value);
+    if(payload.orm) { orm = payload.orm; writeJSON(LS.orm, orm); }
+    if(payload.draft) { draft = payload.draft; writeJSON(LS.draft, draft); }
+    if(payload.history) { history = payload.history; writeJSON(LS.history, history); }
+    if(payload.last) { state = payload.last; writeJSON(LS.last, state); }
+    showToast('読み込みました');
+    renderAll();
+  }catch(e){
+    showToast('読み込みに失敗しました');
+  }
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  if(!confirm('すべての記録・設定を削除します。よろしいですか？')) return;
+  localStorage.removeItem(LS.orm);
+  localStorage.removeItem(LS.draft);
+  localStorage.removeItem(LS.history);
+  localStorage.removeItem(LS.last);
+  orm = {squat:null,bench:null,deadlift:null};
+  draft = {}; history = []; state = {week:"WEEK1", day:"1"};
+  showToast('削除しました');
+  renderAll();
+});
+
+/* ---------- Nav ---------- */
+document.querySelectorAll('.navbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.navbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const p = btn.dataset.page;
+    document.querySelectorAll('.page').forEach(pg=>pg.classList.remove('active'));
+    document.getElementById('page-'+p).classList.add('active');
+    document.getElementById('workoutTabsWrap').style.display = (p==='workout') ? '' : 'none';
+    document.querySelector('.savebar').style.display = (p==='workout') ? '' : 'none';
+  });
+});
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+function renderAll(){
+  renderTabs();
+  renderWorkout();
+  renderHistory();
+  renderSettings();
+}
+renderAll();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
