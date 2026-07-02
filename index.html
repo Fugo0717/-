@@ -33,7 +33,7 @@ body{
   background:var(--bg);
   color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif;
-  padding-bottom:78px;
+  padding-bottom:calc(150px + env(safe-area-inset-bottom));
   overscroll-behavior-y:none;
 }
 h1,h2,h3{margin:0;}
@@ -92,6 +92,12 @@ input,textarea{font-family:inherit;}
   font-size:12px;font-weight:800;color:var(--accent);flex:0 0 auto;
 }
 .card-head h3{font-size:15.5px;font-weight:700;flex:1;line-height:1.3;}
+.name-input{
+  flex:1;background:transparent;border:none;border-bottom:1px dashed var(--border);
+  color:var(--text);font-size:15.5px;font-weight:700;padding:2px 0 4px;min-width:0;
+}
+.name-input:focus{outline:none;border-bottom-color:var(--accent);}
+.name-hint{font-size:9.5px;color:var(--muted);margin-left:2px;}
 .badge{
   font-size:11px;font-weight:700;color:var(--muted);
   background:var(--surface2);border:1px solid var(--border);
@@ -120,6 +126,21 @@ input,textarea{font-family:inherit;}
 }
 .meta-chip.target{color:var(--accent);border-color:var(--accent-dim);font-weight:800;}
 
+.timer-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  background:var(--surface2);border:1px solid var(--border);border-radius:9px;
+  padding:8px 10px;
+}
+.timer-row .tlabel{font-size:11px;color:var(--muted);font-weight:700;flex:0 0 auto;}
+.timer-row .tclock{
+  font-size:17px;font-weight:800;color:var(--accent2);letter-spacing:0.5px;flex:1;text-align:center;
+}
+.timer-row .tclock.done{color:var(--accent);}
+.timer-row button{
+  border:none;border-radius:7px;padding:7px 12px;font-size:12px;font-weight:800;
+  background:var(--accent);color:#1A0F0A;flex:0 0 auto;
+}
+.timer-row button.secondary{background:var(--border);color:var(--text);}
 .inputs-row{display:flex;gap:8px;}
 .field{flex:1;}
 .field label{
@@ -150,16 +171,18 @@ input,textarea{font-family:inherit;}
 .bottomnav button.active{color:var(--accent);}
 
 /* ---- Save bar ---- */
+.listend-spacer{height:26px;}
 .savebar{
-  position:sticky;bottom:70px;z-index:15;
+  position:fixed;left:0;right:0;
+  bottom:calc(64px + env(safe-area-inset-bottom));
+  z-index:25;
   display:flex;justify-content:center;pointer-events:none;
-  margin-top:6px;
 }
 .save-btn{
   pointer-events:all;
   background:var(--accent);color:#1A0F0A;border:none;
   padding:13px 26px;border-radius:999px;font-weight:800;font-size:14.5px;
-  box-shadow:0 8px 22px rgba(255,106,61,0.35);
+  box-shadow:0 8px 22px rgba(255,106,61,0.45), 0 0 0 6px var(--bg);
   display:flex;align-items:center;gap:8px;
 }
 
@@ -232,6 +255,7 @@ textarea.backup{
   <!-- WORKOUT PAGE -->
   <div class="page active" id="page-workout">
     <div id="workoutList"></div>
+    <div class="listend-spacer"></div>
     <div class="savebar"><button class="save-btn" id="saveLogBtn">✓ この日の記録を保存</button></div>
   </div>
 
@@ -286,7 +310,8 @@ const LS = {
   orm: "ironlog_orm",
   last: "ironlog_last",
   draft: "ironlog_draft",
-  history: "ironlog_history"
+  history: "ironlog_history",
+  names: "ironlog_names"
 };
 
 function readJSON(key, fallback){
@@ -303,6 +328,50 @@ let orm = readJSON(LS.orm, {squat:null, bench:null, deadlift:null});
 let draft = readJSON(LS.draft, {}); // key -> {weight, reps, memo}
 let history = readJSON(LS.history, []);
 let state = readJSON(LS.last, {week:"WEEK1", day:"1"});
+let names = readJSON(LS.names, {}); // nameKey -> custom exercise name
+let currentNameByIdx = {}; // idx -> effective display name (rebuilt each render)
+let timerState = {}; // key -> {duration, remaining, running, handle}
+
+function escapeAttr(s){
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function nameKeyFor(week, day, order){
+  return week + "|" + day + "|" + order;
+}
+function fmtClock(s){
+  s = Math.max(0, Math.round(s));
+  const m = Math.floor(s/60), sec = s%60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+function parseIntervalSeconds(intervalStr){
+  if(!intervalStr) return null;
+  const parts = String(intervalStr).split('-').map(s=>parseFloat(s));
+  const valid = parts.filter(n=>!isNaN(n));
+  if(valid.length === 0) return null;
+  const max = Math.max(...valid);
+  return Math.round(max*60);
+}
+function beep(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    const ctx = new Ctx();
+    [0,0.35,0.7].forEach(offset=>{
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.frequency.value = 880;
+      o.connect(g); g.connect(ctx.destination);
+      const t0 = ctx.currentTime + offset;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.35, t0+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+0.28);
+      o.start(t0); o.stop(t0+0.3);
+    });
+  }catch(e){}
+}
+function clearAllTimers(){
+  Object.values(timerState).forEach(t=>{ if(t.handle) clearInterval(t.handle); });
+  timerState = {};
+}
 
 function mround(value, step){
   return Math.round(value/step) * step;
@@ -348,6 +417,8 @@ function persistState(){ writeJSON(LS.last, state); }
 
 /* ---------- Rendering: workout list ---------- */
 function renderWorkout(){
+  clearAllTimers();
+  currentNameByIdx = {};
   const list = document.getElementById('workoutList');
   list.innerHTML = "";
   const rows = PROGRAM[state.week][state.day] || [];
@@ -364,12 +435,16 @@ function renderWorkout(){
 
   groups.forEach(g=>{
     const main = g.items[0].row;
+    const nk = nameKeyFor(state.week, state.day, g.order);
+    const displayName = (names[nk] !== undefined && names[nk] !== '') ? names[nk] : main.name;
+
     const card = document.createElement('div');
     card.className = 'card';
 
     const head = document.createElement('div');
     head.className = 'card-head';
-    head.innerHTML = `<div class="ord">${g.order ?? ''}</div><h3>${main.name.replace(/^Backoff$/,'')}</h3>` +
+    head.innerHTML = `<div class="ord">${g.order ?? ''}</div>` +
+      `<input class="name-input" type="text" data-namekey="${escapeAttr(nk)}" value="${escapeAttr(displayName)}" placeholder="種目名を入力">` +
       (main.rpe ? `<div class="badge">${main.rpe.trim()}</div>` : '');
     card.appendChild(head);
 
@@ -381,6 +456,8 @@ function renderWorkout(){
     }
 
     g.items.forEach(({row, idx})=>{
+      currentNameByIdx[idx] = row.name === 'Backoff' ? displayName + '（バックオフ）' : displayName;
+
       const block = document.createElement('div');
       block.className = 'block';
 
@@ -399,9 +476,23 @@ function renderWorkout(){
       chips.push(`<div class="meta-chip">${row.sets}セット × ${row.reps}回</div>`);
       if(row.pct) chips.push(`<div class="meta-chip">${Math.round(row.pct*100)}% RM</div>`);
       if(target !== null) chips.push(`<div class="meta-chip target">目標 ${fmtNum(target)} kg</div>`);
-      if(row.interval) chips.push(`<div class="meta-chip">休憩 ${row.interval}分</div>`);
+      if(row.interval) chips.push(`<div class="meta-chip">休憩目安 ${row.interval}分</div>`);
       meta.innerHTML = chips.join('');
       block.appendChild(meta);
+
+      const tSec = parseIntervalSeconds(row.interval);
+      if(tSec){
+        timerState[key] = {duration: tSec, remaining: tSec, running:false, handle:null};
+        const timerRow = document.createElement('div');
+        timerRow.className = 'timer-row';
+        timerRow.innerHTML = `
+          <div class="tlabel">休憩タイマー</div>
+          <div class="tclock" id="clock-${key}">${fmtClock(tSec)}</div>
+          <button type="button" class="t-start" data-tkey="${key}">開始</button>
+          <button type="button" class="secondary t-reset" data-tkey="${key}">↺</button>
+        `;
+        block.appendChild(timerRow);
+      }
 
       const inputsRow = document.createElement('div');
       inputsRow.className = 'inputs-row';
@@ -428,7 +519,7 @@ function renderWorkout(){
     list.innerHTML = '<div class="empty">このDayのメニューはありません。</div>';
   }
 
-  // wire inputs
+  // wire weight/reps inputs
   list.querySelectorAll('input[data-key]').forEach(inp=>{
     inp.addEventListener('input', ()=>{
       const k = inp.dataset.key, f = inp.dataset.field;
@@ -437,6 +528,64 @@ function renderWorkout(){
       writeJSON(LS.draft, draft);
     });
   });
+
+  // wire editable exercise names
+  list.querySelectorAll('input[data-namekey]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const nk = inp.dataset.namekey;
+      names[nk] = inp.value;
+      writeJSON(LS.names, names);
+    });
+  });
+
+  // wire rest timers
+  list.querySelectorAll('.t-start').forEach(btn=>{
+    btn.addEventListener('click', ()=> toggleTimer(btn.dataset.tkey));
+  });
+  list.querySelectorAll('.t-reset').forEach(btn=>{
+    btn.addEventListener('click', ()=> resetTimer(btn.dataset.tkey));
+  });
+}
+
+function toggleTimer(key){
+  const t = timerState[key];
+  if(!t) return;
+  const btn = document.querySelector(`.t-start[data-tkey="${key}"]`);
+  const clock = document.getElementById('clock-'+key);
+  if(t.running){
+    clearInterval(t.handle);
+    t.running = false;
+    if(btn) btn.textContent = '再開';
+  } else {
+    t.endTime = Date.now() + t.remaining*1000;
+    t.running = true;
+    if(clock) clock.classList.remove('done');
+    if(btn) btn.textContent = '一時停止';
+    t.handle = setInterval(()=>{
+      const rem = Math.round((t.endTime - Date.now())/1000);
+      t.remaining = Math.max(0, rem);
+      if(clock) clock.textContent = fmtClock(t.remaining);
+      if(t.remaining <= 0){
+        clearInterval(t.handle);
+        t.running = false;
+        t.remaining = t.duration;
+        if(clock) clock.classList.add('done');
+        if(btn) btn.textContent = '開始';
+        beep();
+      }
+    }, 250);
+  }
+}
+function resetTimer(key){
+  const t = timerState[key];
+  if(!t) return;
+  clearInterval(t.handle);
+  t.running = false;
+  t.remaining = t.duration;
+  const btn = document.querySelector(`.t-start[data-tkey="${key}"]`);
+  const clock = document.getElementById('clock-'+key);
+  if(clock){ clock.classList.remove('done'); clock.textContent = fmtClock(t.duration); }
+  if(btn) btn.textContent = '開始';
 }
 
 /* ---------- Save session to history ---------- */
@@ -448,7 +597,7 @@ document.getElementById('saveLogBtn').addEventListener('click', ()=>{
     const d = draft[key] || {};
     const target = calcTarget(row.refBase, row.pct);
     entries.push({
-      name: row.name === 'Backoff' ? '（バックオフ）' : row.name,
+      name: currentNameByIdx[idx] || row.name,
       setInfo: row.sets + 'x' + row.reps,
       target: target,
       weight: d.weight || null,
@@ -526,7 +675,7 @@ document.getElementById('saveOrmBtn').addEventListener('click', ()=>{
   renderWorkout();
 });
 document.getElementById('exportBtn').addEventListener('click', ()=>{
-  const payload = {orm, draft, history, last:state};
+  const payload = {orm, draft, history, last:state, names};
   document.getElementById('backupArea').value = JSON.stringify(payload);
   showToast('書き出しました。テキストをコピーして保管してください');
 });
@@ -537,6 +686,7 @@ document.getElementById('importBtn').addEventListener('click', ()=>{
     if(payload.draft) { draft = payload.draft; writeJSON(LS.draft, draft); }
     if(payload.history) { history = payload.history; writeJSON(LS.history, history); }
     if(payload.last) { state = payload.last; writeJSON(LS.last, state); }
+    if(payload.names) { names = payload.names; writeJSON(LS.names, names); }
     showToast('読み込みました');
     renderAll();
   }catch(e){
@@ -549,8 +699,9 @@ document.getElementById('resetBtn').addEventListener('click', ()=>{
   localStorage.removeItem(LS.draft);
   localStorage.removeItem(LS.history);
   localStorage.removeItem(LS.last);
+  localStorage.removeItem(LS.names);
   orm = {squat:null,bench:null,deadlift:null};
-  draft = {}; history = []; state = {week:"WEEK1", day:"1"};
+  draft = {}; history = []; state = {week:"WEEK1", day:"1"}; names = {};
   showToast('削除しました');
   renderAll();
 });
